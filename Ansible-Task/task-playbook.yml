@@ -1,0 +1,76 @@
+- name: Install Java, Tomcat, and Nexus
+  hosts: [servers]
+  become: yes
+
+  tasks:
+    - name: Update package manager
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install necessary dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - openssh-client
+        - wget
+        - unzip
+
+    - name: Download JDK
+      get_url:
+        url: "{{ jdk_download_url }}"
+        dest: "/tmp/jdk.tar.gz"
+
+    - name: Extract JDK
+      unarchive:
+        src: "/tmp/jdk.tar.gz"
+        dest: "/usr/local"
+        remote_src: yes
+
+    - name: Set JAVA_HOME
+      lineinfile:
+        path: /etc/environment
+        line: "JAVA_HOME=/usr/local/jdk-{{ jdk_version }}"
+        create: yes
+
+    - name: Update PATH
+      lineinfile:
+        path: ~/.bashrc
+        line: "export PATH=$JAVA_HOME/bin:$PATH"
+        create: yes
+
+    - name: Download Tomcat
+      get_url:
+        url: "{{ tomcat_download_url }}"
+        dest: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+
+    - name: Extract Tomcat
+      unarchive:
+        src: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        dest: "/opt"
+        remote_src: yes
+
+    - name: Download Nexus
+      get_url:
+        url: "{{ nexus_download_url }}"
+        dest: "/tmp/{{ inventory_hostname }}_{{ filename }}.xml"
+
+    - name: Extract Nexus
+      unarchive:
+        src: "/tmp/nexus-{{ nexus_version }}-bundle.tar.gz"
+        dest: "/opt"
+        remote_src: yes
+
+    - name: Configure Nexus
+      template:
+        src: nexus.xml
+        dest: "/opt/sonatype-work/nexus3/etc/nexus.xml"
+
+  vars:
+    jdk_download_url: "https://download.oracle.com/java/22/latest/jdk-22_linux-x64_bin.tar.gz"  # Replace with actual URL
+    jdk_version: "22.0.2"
+    tomcat_download_url: "https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.93/src/apache-tomcat-9.0.93-src.tar.gz"  # Replace with actual URL
+    tomcat_version: "9.0.93"
+    nexus_download_url: "https://download.sonatype.com/nexus/3/nexus-3.71.0-06-unix.tar.gz"  # Replace with actual URL
+    nexus_version: "3.71.0"
